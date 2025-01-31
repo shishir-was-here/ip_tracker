@@ -1,111 +1,53 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your IP Address</title>
+    <title>Camera Capture</title>
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: #fff;
-        }
-
-        .container {
-            text-align: center;
-            background: rgba(255, 255, 255, 0.1);
-            padding: 2rem;
-            border-radius: 16px;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        h1 {
-            font-size: 2rem;
-            margin-bottom: 1rem;
-            font-weight: 600;
-        }
-
-        #ip {
-            font-size: 1.75rem;
-            font-weight: bold;
-            color: #fff;
-            background: rgba(255, 255, 255, 0.2);
-            padding: 0.75rem 1.5rem;
-            border-radius: 8px;
-            margin-top: 1rem;
-            display: inline-block;
-            transition: background 0.3s ease;
-        }
-
-        #ip:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
-
-        .loading {
-            font-style: italic;
-            opacity: 0.8;
-        }
-
-        .error {
-            color: #ff6b6b;
-        }
+        body { display: flex; flex-direction: column; align-items: center; }
+        #cameraPreview { width: 640px; height: 480px; border: 2px solid black; }
+        button { margin: 10px; padding: 10px 20px; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Your IP Address</h1>
-        <p><span id="ip" class="loading">Loading...</span></p>
-    </div>
+    <video id="cameraPreview"></video>
+    <button onclick="capturePhoto()">Take Photo</button>
+    <canvas id="photoCanvas" hidden></canvas>
 
     <script>
-        const apiUrls = [
-            'https://api.ipify.org?format=json',
-            'https://ipinfo.io/json',
-            'https://worldtimeapi.org/api/ip',
-            'https://api.my-ip.io/ip.json'
-        ];
-
-        async function fetchIP() {
-            for (const url of apiUrls) {
-                try {
-                    const response = await fetch(url, {
-                        headers: { 'Accept': 'application/json' }
-                    });
-
-                    if (!response.ok) continue; // Try next API
-
-                    const data = await response.json();
-                    const ip = data.ip || data.client_ip; // Handle different response formats
-
-                    if (ip) {
-                        document.getElementById("ip").textContent = ip;
-                        document.getElementById("ip").classList.remove("loading");
-                        return;
-                    }
-                } catch (error) {
-                    console.log(`Failed ${url}:`, error);
-                }
+        const video = document.getElementById('cameraPreview');
+        const canvas = document.getElementById('photoCanvas');
+        
+        // Request camera access
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 640, height: 480 }
+                });
+                video.srcObject = stream;
+            } catch (error) {
+                alert('Error accessing camera: ' + error.message);
             }
-            document.getElementById("ip").textContent = "Failed to fetch IP";
-            document.getElementById("ip").classList.add("error");
         }
 
-        // Add timeout for slow networks
-        setTimeout(() => {
-            if (document.getElementById("ip").textContent === "Loading...") {
-                document.getElementById("ip").textContent = "Timeout - Check connection";
-                document.getElementById("ip").classList.add("error");
-            }
-        }, 5000);
+        // Capture photo from video stream
+        function capturePhoto() {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            
+            // Draw current video frame to canvas
+            context.drawImage(video, 0, 0);
+            
+            // Convert to downloadable image
+            const dataUrl = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.download = 'photo.png';
+            link.href = dataUrl;
+            link.click();
+        }
 
-        fetchIP();
+        // Start camera when page loads
+        startCamera();
     </script>
 </body>
 </html>
