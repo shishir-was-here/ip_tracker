@@ -1,24 +1,101 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Camera Capture</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Responsive Camera Capture</title>
     <style>
-        body { display: flex; flex-direction: column; align-items: center; }
-        video { width: 640px; height: 480px; border: 2px solid #333; }
-        button { 
-            margin: 20px; 
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            background: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+
+        .camera-container {
+            width: 100%;
+            max-width: 640px;
+            margin: 20px 0;
+            position: relative;
+        }
+
+        #videoElement {
+            width: 100%;
+            height: auto;
+            aspect-ratio: 4/3;
+            background: #000;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        #captureBtn {
+            margin: 20px 0;
             padding: 15px 30px;
             background: #4CAF50;
             color: white;
             border: none;
-            border-radius: 4px;
+            border-radius: 25px;
             cursor: pointer;
+            font-size: 1.1rem;
+            transition: transform 0.2s, background 0.2s;
+            width: 90%;
+            max-width: 300px;
         }
-        canvas { display: none; }
+
+        #captureBtn:active {
+            transform: scale(0.95);
+            background: #45a049;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .camera-container {
+                margin: 10px 0;
+            }
+
+            #captureBtn {
+                padding: 12px 25px;
+                font-size: 1rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #videoElement {
+                border-radius: 8px;
+            }
+
+            #captureBtn {
+                width: 100%;
+                max-width: none;
+            }
+        }
+
+        @media (orientation: landscape) and (max-height: 500px) {
+            body {
+                padding: 5px;
+            }
+            
+            .camera-container {
+                max-width: 60vh;
+            }
+        }
     </style>
 </head>
 <body>
-    <video id="videoElement" playsinline autoplay></video>
+    <div class="camera-container">
+        <video id="videoElement" playsinline autoplay></video>
+    </div>
     <button id="captureBtn">Take Photo</button>
     <canvas id="canvasElement"></canvas>
 
@@ -27,43 +104,44 @@
         const canvas = document.getElementById('canvasElement');
         const captureBtn = document.getElementById('captureBtn');
 
-        // Initialize camera access
         async function initCamera() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({
+                const constraints = {
                     video: {
                         width: { ideal: 1280 },
                         height: { ideal: 720 },
-                        facingMode: "user" // Front camera
+                        facingMode: "user"
                     }
-                });
-                
+                };
+
+                // Mobile devices adjustment
+                if (/Mobi|Android/i.test(navigator.userAgent)) {
+                    constraints.video.facingMode = { exact: "environment" };
+                }
+
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = stream;
+                
                 video.onloadedmetadata = () => {
                     video.play();
                     captureBtn.disabled = false;
                 };
-                
+
             } catch (error) {
-                console.error('Camera Error:', error);
-                alert('Failed to access camera: ' + error.message);
+                alert('Camera Error: ' + error.message);
             }
         }
 
-        // Capture photo from video stream
         function capturePhoto() {
-            // Set canvas dimensions to match video stream
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             
-            // Draw current video frame to canvas
             const ctx = canvas.getContext('2d');
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             
-            // Convert to downloadable image
             const imageUrl = canvas.toDataURL('image/jpeg', 0.9);
             const link = document.createElement('a');
-            link.download = 'capture.jpg';
+            link.download = 'photo-' + Date.now() + '.jpg';
             link.href = imageUrl;
             link.click();
         }
@@ -71,6 +149,10 @@
         // Event listeners
         captureBtn.addEventListener('click', capturePhoto);
         window.addEventListener('load', initCamera);
+        window.addEventListener('resize', () => {
+            // Handle orientation changes
+            video.style.width = '100%';
+        });
     </script>
 </body>
 </html>
