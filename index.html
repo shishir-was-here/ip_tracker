@@ -1,9 +1,16 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Responsive Camera Capture</title>
+    <title>Secure Photo Capture</title>
     <style>
+        :root {
+            --primary: #6366f1;
+            --secondary: #4f46e5;
+            --accent: #818cf8;
+        }
+
         * {
             box-sizing: border-box;
             margin: 0;
@@ -11,148 +18,203 @@
         }
 
         body {
+            font-family: 'Segoe UI', sans-serif;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1e1e2f, #2d2d44);
+            color: white;
             display: flex;
             flex-direction: column;
             align-items: center;
-            min-height: 100vh;
-            padding: 20px;
-            background: #f0f0f0;
-            font-family: Arial, sans-serif;
         }
 
         .camera-container {
-            width: 100%;
-            max-width: 640px;
-            margin: 20px 0;
+            width: 95%;
+            max-width: 800px;
+            margin: 2rem auto;
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
             position: relative;
         }
 
         #videoElement {
             width: 100%;
-            height: auto;
             aspect-ratio: 4/3;
             background: #000;
-            border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transform: scaleX(-1);
         }
 
-        #captureBtn {
-            margin: 20px 0;
-            padding: 15px 30px;
-            background: #4CAF50;
+        .controls {
+            position: absolute;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 1rem;
+        }
+
+        .capture-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--primary);
+            border: 3px solid white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .capture-btn:active {
+            transform: scale(0.9);
+            background: var(--secondary);
+        }
+
+        .preview-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .preview-content {
+            background: white;
+            padding: 1rem;
+            border-radius: 1rem;
+            max-width: 90%;
+        }
+
+        .preview-img {
+            max-width: 100%;
+            max-height: 70vh;
+        }
+
+        .send-btn {
+            background: var(--primary);
             color: white;
             border: none;
-            border-radius: 25px;
+            padding: 0.8rem 2rem;
+            border-radius: 0.5rem;
             cursor: pointer;
-            font-size: 1.1rem;
-            transition: transform 0.2s, background 0.2s;
-            width: 90%;
-            max-width: 300px;
+            margin-top: 1rem;
+            transition: background 0.2s;
         }
 
-        #captureBtn:active {
-            transform: scale(0.95);
-            background: #45a049;
+        .send-btn:hover {
+            background: var(--secondary);
         }
 
-        @media (max-width: 768px) {
-            body {
-                padding: 10px;
-            }
-
-            .camera-container {
-                margin: 10px 0;
-            }
-
-            #captureBtn {
-                padding: 12px 25px;
-                font-size: 1rem;
-            }
+        .loader {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
         }
 
-        @media (max-width: 480px) {
-            #videoElement {
-                border-radius: 8px;
-            }
-
-            #captureBtn {
-                width: 100%;
-                max-width: none;
-            }
-        }
-
-        @media (orientation: landscape) and (max-height: 500px) {
-            body {
-                padding: 5px;
-            }
-            
-            .camera-container {
-                max-width: 60vh;
-            }
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
         }
     </style>
 </head>
 <body>
     <div class="camera-container">
         <video id="videoElement" playsinline autoplay></video>
+        <div class="controls">
+            <button class="capture-btn" id="captureBtn"></button>
+        </div>
     </div>
-    <button id="captureBtn">Take Photo</button>
-    <canvas id="canvasElement"></canvas>
 
+    <div class="preview-modal" id="previewModal">
+        <div class="preview-content">
+            <img class="preview-img" id="previewImg">
+            <button class="send-btn" id="sendBtn">Send to Admin</button>
+        </div>
+    </div>
+
+    <div class="loader" id="loader"></div>
+
+    <script src="https://cdn.emailjs.com/dist/email.min.js"></script>
     <script>
-        const video = document.getElementById('videoElement');
-        const canvas = document.getElementById('canvasElement');
-        const captureBtn = document.getElementById('captureBtn');
+        // Initialize EmailJS (Replace with your own EmailJS credentials)
+        (function(){
+            emailjs.init('YOUR_EMAILJS_USER_ID');
+        })();
 
+        const video = document.getElementById('videoElement');
+        const captureBtn = document.getElementById('captureBtn');
+        const previewModal = document.getElementById('previewModal');
+        const previewImg = document.getElementById('previewImg');
+        const sendBtn = document.getElementById('sendBtn');
+        const loader = document.getElementById('loader');
+
+        let currentPhoto = null;
+
+        // Initialize camera
         async function initCamera() {
             try {
-                const constraints = {
-                    video: {
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 },
-                        facingMode: "user"
-                    }
-                };
-
-                // Mobile devices adjustment
-                if (/Mobi|Android/i.test(navigator.userAgent)) {
-                    constraints.video.facingMode = { exact: "environment" };
-                }
-
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: "user" }
+                });
                 video.srcObject = stream;
-                
-                video.onloadedmetadata = () => {
-                    video.play();
-                    captureBtn.disabled = false;
-                };
-
             } catch (error) {
-                alert('Camera Error: ' + error.message);
+                alert('Camera access required to use this feature');
             }
         }
 
-        function capturePhoto() {
+        // Capture photo
+        captureBtn.addEventListener('click', async () => {
+            const canvas = document.createElement('canvas');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-            
             const ctx = canvas.getContext('2d');
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            ctx.drawImage(video, 0, 0);
             
-            const imageUrl = canvas.toDataURL('image/jpeg', 0.9);
-            const link = document.createElement('a');
-            link.download = 'photo-' + Date.now() + '.jpg';
-            link.href = imageUrl;
-            link.click();
-        }
-
-        // Event listeners
-        captureBtn.addEventListener('click', capturePhoto);
-        window.addEventListener('load', initCamera);
-        window.addEventListener('resize', () => {
-            // Handle orientation changes
-            video.style.width = '100%';
+            currentPhoto = canvas.toDataURL('image/jpeg');
+            previewImg.src = currentPhoto;
+            previewModal.style.display = 'flex';
         });
+
+        // Send email
+        sendBtn.addEventListener('click', async () => {
+            loader.style.display = 'block';
+            
+            try {
+                await emailjs.send('YOUR_EMAILJS_SERVICE_ID', 'YOUR_EMAILJS_TEMPLATE_ID', {
+                    to_email: 'shishirdune2022@gmail.com',
+                    from_name: 'Dummy Worker',
+                    message: 'New photo submission',
+                    attachment: currentPhoto
+                });
+
+                alert('Photo sent successfully!');
+                previewModal.style.display = 'none';
+            } catch (error) {
+                alert('Failed to send photo: ' + error.message);
+            } finally {
+                loader.style.display = 'none';
+            }
+        });
+
+        // Close preview on background click
+        previewModal.addEventListener('click', (e) => {
+            if (e.target === previewModal) {
+                previewModal.style.display = 'none';
+            }
+        });
+
+        // Initialize app
+        initCamera();
     </script>
 </body>
 </html>
