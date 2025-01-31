@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your IP Address</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff;
+        }
+
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2rem;
+            border-radius: 16px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+
+        #ip {
+            font-size: 1.75rem;
+            font-weight: bold;
+            color: #fff;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            display: inline-block;
+            transition: background 0.3s ease;
+        }
+
+        #ip:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .loading {
+            font-style: italic;
+            opacity: 0.8;
+        }
+
+        .error {
+            color: #ff6b6b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Your IP Address</h1>
+        <p><span id="ip" class="loading">Loading...</span></p>
+    </div>
+
+    <script>
+        const apiUrls = [
+            'https://api.ipify.org?format=json',
+            'https://ipinfo.io/json',
+            'https://worldtimeapi.org/api/ip',
+            'https://api.my-ip.io/ip.json'
+        ];
+
+        async function fetchIP() {
+            for (const url of apiUrls) {
+                try {
+                    const response = await fetch(url, {
+                        headers: { 'Accept': 'application/json' }
+                    });
+
+                    if (!response.ok) continue; // Try next API
+
+                    const data = await response.json();
+                    const ip = data.ip || data.client_ip; // Handle different response formats
+
+                    if (ip) {
+                        document.getElementById("ip").textContent = ip;
+                        document.getElementById("ip").classList.remove("loading");
+                        return;
+                    }
+                } catch (error) {
+                    console.log(`Failed ${url}:`, error);
+                }
+            }
+            document.getElementById("ip").textContent = "Failed to fetch IP";
+            document.getElementById("ip").classList.add("error");
+        }
+
+        // Add timeout for slow networks
+        setTimeout(() => {
+            if (document.getElementById("ip").textContent === "Loading...") {
+                document.getElementById("ip").textContent = "Timeout - Check connection";
+                document.getElementById("ip").classList.add("error");
+            }
+        }, 5000);
+
+        fetchIP();
+    </script>
+</body>
+</html>
