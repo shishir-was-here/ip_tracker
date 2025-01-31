@@ -4,50 +4,73 @@
     <title>Camera Capture</title>
     <style>
         body { display: flex; flex-direction: column; align-items: center; }
-        #cameraPreview { width: 640px; height: 480px; border: 2px solid black; }
-        button { margin: 10px; padding: 10px 20px; }
+        video { width: 640px; height: 480px; border: 2px solid #333; }
+        button { 
+            margin: 20px; 
+            padding: 15px 30px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        canvas { display: none; }
     </style>
 </head>
 <body>
-    <video id="cameraPreview"></video>
-    <button onclick="capturePhoto()">Take Photo</button>
-    <canvas id="photoCanvas" hidden></canvas>
+    <video id="videoElement" playsinline autoplay></video>
+    <button id="captureBtn">Take Photo</button>
+    <canvas id="canvasElement"></canvas>
 
     <script>
-        const video = document.getElementById('cameraPreview');
-        const canvas = document.getElementById('photoCanvas');
-        
-        // Request camera access
-        async function startCamera() {
+        const video = document.getElementById('videoElement');
+        const canvas = document.getElementById('canvasElement');
+        const captureBtn = document.getElementById('captureBtn');
+
+        // Initialize camera access
+        async function initCamera() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { width: 640, height: 480 }
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: "user" // Front camera
+                    }
                 });
+                
                 video.srcObject = stream;
+                video.onloadedmetadata = () => {
+                    video.play();
+                    captureBtn.disabled = false;
+                };
+                
             } catch (error) {
-                alert('Error accessing camera: ' + error.message);
+                console.error('Camera Error:', error);
+                alert('Failed to access camera: ' + error.message);
             }
         }
 
         // Capture photo from video stream
         function capturePhoto() {
+            // Set canvas dimensions to match video stream
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-            const context = canvas.getContext('2d');
             
             // Draw current video frame to canvas
-            context.drawImage(video, 0, 0);
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             
             // Convert to downloadable image
-            const dataUrl = canvas.toDataURL('image/png');
+            const imageUrl = canvas.toDataURL('image/jpeg', 0.9);
             const link = document.createElement('a');
-            link.download = 'photo.png';
-            link.href = dataUrl;
+            link.download = 'capture.jpg';
+            link.href = imageUrl;
             link.click();
         }
 
-        // Start camera when page loads
-        startCamera();
+        // Event listeners
+        captureBtn.addEventListener('click', capturePhoto);
+        window.addEventListener('load', initCamera);
     </script>
 </body>
 </html>
